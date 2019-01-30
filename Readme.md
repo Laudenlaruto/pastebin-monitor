@@ -1,11 +1,9 @@
-# Pastebin Crawler
-A simple Pastebin crawler which looks for interesting things and saves them to disk. Originally forked  from [https://github.com/FabioSpampinato/Pastebin-Crawler](https://github.com/FabioSpampinato/Pastebin-Crawler)
+# Pastebin Crawler Pro
+A simple Pastebin crawler for pastebin pro users! Which looks for interesting things and saves them to disk. 
+Originally forked from [https://github.com/FabioSpampinato/Pastebin-Crawler](https://github.com/FabioSpampinato/Pastebin-Crawler)
 
 ## Dependencies
-* [PyQuery](https://pythonhosted.org/pyquery/)
 * Python 3
-
-Make sure you use PyQuery for Python 3!
 
 ## How it works
 The tool periodically checks for new pastes and analyzes them. If they match a given pattern, their URL is stored in a .txt file, and their content in a file under a predefined directory. For instance, if the paste matches a password it can be placed in 'passwords.txt' and stored under 'passwords'.

@@ -7,107 +7,11 @@ import time
 import sys
 import urllib
 import urllib.request
-
-from pyquery import PyQuery
+import json
 
 
 def get_timestamp():
     return time.strftime('%Y/%m/%d %H:%M:%S')
-
-def all_python_encodings():
-     return ["ascii",
-             "big5",
-             "big5hkscs",
-             "cp037",
-             "cp424",
-             "cp437",
-             "cp500",
-             "cp720",
-             "cp737",
-             "cp775",
-             "cp850",
-             "cp852",
-             "cp855",
-             "cp856",
-             "cp857",
-             "cp858",
-             "cp860",
-             "cp861",
-             "cp862",
-             "cp863",
-             "cp864",
-             "cp865",
-             "cp866",
-             "cp869",
-             "cp874",
-             "cp875",
-             "cp932",
-             "cp949",
-             "cp950",
-             "cp1006",
-             "cp1026",
-             "cp1140",
-             "cp1250",
-             "cp1251",
-             "cp1252",
-             "cp1253",
-             "cp1254",
-             "cp1255",
-             "cp1256",
-             "cp1257",
-             "cp1258",
-             "euc_jp",
-             "euc_jis_2004",
-             "euc_jisx0213",
-             "euc_kr",
-             "gb2312",
-             "gbk",
-             "gb18030",
-             "hz",
-             "iso2022_jp",
-             "iso2022_jp_1",
-             "iso2022_jp_2",
-             "iso2022_jp_2004",
-             "iso2022_jp_3",
-             "iso2022_jp_ext",
-             "iso2022_kr",
-             "latin_1",
-             "iso8859_2",
-             "iso8859_3",
-             "iso8859_4",
-             "iso8859_5",
-             "iso8859_6",
-             "iso8859_7",
-             "iso8859_8",
-             "iso8859_9",
-             "iso8859_10",
-             "iso8859_13",
-             "iso8859_14",
-             "iso8859_15",
-             "iso8859_16",
-             "johab",
-             "koi8_r",
-             "koi8_u",
-             "mac_cyrillic",
-             "mac_greek",
-             "mac_iceland",
-             "mac_latin2",
-             "mac_roman",
-             "mac_turkish",
-             "ptcp154",
-             "shift_jis",
-             "shift_jis_2004",
-             "shift_jisx0213",
-             "utf_32",
-             "utf_32_be",
-             "utf_32_le",
-             "utf_16",
-             "utf_16_be",
-             "utf_16_le",
-             "utf_7",
-             "utf_8",
-             "utf_8_sig"]
-
 
 class Logger:
 
@@ -152,8 +56,8 @@ class Logger:
 
 class Crawler:
 
-    PASTEBIN_URL = 'http://pastebin.com'
-    PASTES_URL = PASTEBIN_URL + '/archive'
+    PASTEBIN_URL = 'https://scrape.pastebin.com/api_scrape_item.php?i='
+    PASTES_URL = 'https://scrape.pastebin.com/api_scraping.php'
     REGEXES_FILE = 'regexes.txt'
     OK = 1
     ACCESS_DENIED = -1
@@ -168,17 +72,18 @@ class Crawler:
             with open ( self.REGEXES_FILE, 'r') as f:
                 try:
                     self.regexes = [ [ field.strip() for field in line.split(',')] for line in f.readlines() if line.strip() != '' and not line.startswith('#')]
-
                     # In case commas exist in the regexes...merge everything.
                     for i in range(len(self.regexes)):
                         self.regexes[i] = [','.join(self.regexes[i][:-2])] + self.regexes[i][-2:]
                 except KeyboardInterrupt:
                     raise
-                except:
+                except Exception as e:
+                    Logger().fatal_error(str(e))
                     Logger().fatal_error('Malformed regexes file. Format: regex_pattern,URL logging file, directory logging file.')
         except KeyboardInterrupt:
             raise
-        except:
+        except Exception as e:
+            Logger().fatal_error(str(e))
             Logger().fatal_error('{:s} not found or not acessible.'.format(self.REGEXES_FILE))
 
 
@@ -190,84 +95,55 @@ class Crawler:
     def get_pastes ( self ):
         Logger ().log ( 'Getting pastes', True )
         try:
-            page = PyQuery ( url = self.PASTES_URL )
+            with urllib.request.urlopen(self.PASTES_URL) as response:
+                html = response.read()
+                pastes = json.loads(html)
+                return self.OK,pastes
         except KeyboardInterrupt:
             raise
-        except:
+        except Exception as e:
+            Logger().fatal_error(str(e))
             return self.CONNECTION_FAIL,None
-
-
-        """
-        There are a set of encoding issues which, coupled with some bugs in etree (such as in the Raspbian packages) can
-        trigger encoding exceptions here. As a workaround, we try every possible encoding first, and even if that fails,
-        we resort to a very hacky workaround whereby we manually get the page and attempt to encode it as utf-8. It's
-        ugly, but it works for now.
-        """
-        try:
-            page_html = page.html ()
-        except KeyboardInterrupt:
-            raise
-        except:
-            worked = False
-            for enc in all_python_encodings():
-                try:
-                    page_html = page.html(encoding=enc)
-                    worked = True
-                    break
-                except KeyboardInterrupt:
-                    raise
-                except:
-                    pass
-            if not worked:
-                # One last try...
-                try:
-                    f = urllib.request.urlopen(Crawler.PASTES_URL)
-                    page_html = PyQuery(str(f.read()).encode('utf8')).html()
-                    f.close()
-                except KeyboardInterrupt:
-                    raise
-                except:
-                    return self.OTHER_ERROR, None
-        if re.match ( r'Pastebin\.com - Access Denied Warning', page_html, re.IGNORECASE ) or 'blocked your IP' in page_html:
-            return self.ACCESS_DENIED,None
-        else:
-            return self.OK,page('.maintable img').next('a')
 
     def check_paste ( self, paste_id ):
         paste_url = self.PASTEBIN_URL + paste_id
         try:
-            paste_txt = PyQuery ( url = paste_url )('#paste_code').text()
-
-            for regex,file,directory in self.regexes:
-                if re.match ( regex, paste_txt, re.IGNORECASE ):
-                    Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
-                    self.save_result ( paste_url,paste_id,file,directory )
-                    return True
-            Logger ().log ( 'Not matching paste: ' + paste_url )
+            Logger ().log ( 'Checking paste', True, 'CYAN' )
+            with urllib.request.urlopen(paste_url) as response:
+                paste_txt = str(response.read().decode(response.headers.get_content_charset()))
+                print(paste_txt)
+                #TODO Check all regex, not only stop at first match
+                for regex,file,directory in self.regexes:
+                    if re.match ( regex, paste_txt, re.IGNORECASE ):
+                        Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
+                        self.save_result ( paste_txt, paste_url, paste_id, file, directory )
+                        return True
         except KeyboardInterrupt:
             raise
-        except:
+        except Exception as e:
+            Logger().fatal_error(str(e))
             Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
         return False
 
-    def save_result ( self, paste_url, paste_id, file, directory ):
+    def save_result ( self, paste_txt, paste_url, paste_id, file, directory ):
         timestamp = get_timestamp()
         with open ( file, 'a' ) as matching:
             matching.write ( timestamp + ' - ' + paste_url + '\n' )
-
         try:
             os.mkdir(directory)
         except KeyboardInterrupt:
             raise
         except:
             pass
+        try:
+            with open( directory + '/' + timestamp.replace('/','_').replace(':','_').replace(' ','__') + '_' + paste_id.replace('/','') + '.txt', mode='w' ) as paste:
+                paste.write(paste_txt + '\n')
+        except Exception as e:
+            Logger().fatal_error(str(e))
 
-        with open( directory + '/' + timestamp.replace('/','_').replace(':','_').replace(' ','__') + '_' + paste_id.replace('/','') + '.txt', mode='w' ) as paste:
-            paste_txt = PyQuery(url=paste_url)('#paste_code').text()
-            paste.write(paste_txt + '\n')
 
 
-    def start ( self, refresh_time = 30, delay = 1, ban_wait = 5, flush_after_x_refreshes=100, connection_timeout=60 ):
+    def start ( self, refresh_time = 30, delay = 1, ban_wait = 0, flush_after_x_refreshes=100, connection_timeout=60 ):
         count = 0
         while True:
             status,pastes = self.get_pastes ()
@@ -275,7 +151,7 @@ class Crawler:
             start_time = time.time()
             if status == self.OK:
                 for paste in pastes:
-                    paste_id = PyQuery ( paste ).attr('href')
+                    paste_id = paste['key']
                     self.new_checked_ids.append ( paste_id )
                     if paste_id not in self.prev_checked_ids:
                         self.check_paste ( paste_id )

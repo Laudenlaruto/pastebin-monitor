@@ -8,6 +8,7 @@ import sys
 import urllib
 import urllib.request
 import json
+from bs4 import BeautifulSoup
 
 
 def get_timestamp():
@@ -92,36 +93,42 @@ class Crawler:
 
 
 
-    def get_pastes ( self ):
-        Logger ().log ( 'Getting pastes', True )
+    def get_pastes ( self, limit ):
+        Logger ().log ( 'Getting pastes', True , 'PURPLE')
         try:
-            with urllib.request.urlopen(self.PASTES_URL) as response:
-                html = response.read()
-                pastes = json.loads(html)
-                return self.OK,pastes
+            with urllib.request.urlopen(self.PASTES_URL+'?limit='+str(limit)) as response:
+                html = response.read().decode('utf-8')
+                if 'DOES NOT HAVE ACCESS' in html:
+                    Logger().fatal_error("Your public IP is not whitelisted. Go to https://pastebin.com/doc_scraping_api")
+                    return self.CONNECTION_FAIL,None               
+                else:
+                    pastes = json.loads(html)
+                    return self.OK,pastes
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().fatal_error(str(e))
+            Logger().fatal_error("Error getting pastes: " + str(e))
             return self.CONNECTION_FAIL,None
 
     def check_paste ( self, paste_id ):
         paste_url = self.PASTEBIN_URL + paste_id
         try:
-            Logger ().log ( 'Checking paste', True, 'CYAN' )
+            Logger ().log ( 'Checking paste ' + str(paste_id), True, 'CYAN' )
             with urllib.request.urlopen(paste_url) as response:
-                paste_txt = str(response.read().decode(response.headers.get_content_charset()))
-                print(paste_txt)
+                #Read paste with unicode
+                paste_txt = str(BeautifulSoup(response, "lxml"))
+                #   print(paste_txt)
                 #TODO Check all regex, not only stop at first match
                 for regex,file,directory in self.regexes:
                     if re.match ( regex, paste_txt, re.IGNORECASE ):
                         Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
                         self.save_result ( paste_txt, paste_url, paste_id, file, directory )
                         return True
+                return False
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().fatal_error(str(e))
+            Logger().fatal_error("Error on check paste: " + str(e))
             Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
         return False
 
@@ -143,18 +150,20 @@ class Crawler:
 
 
 
-    def start ( self, refresh_time = 30, delay = 1, ban_wait = 0, flush_after_x_refreshes=100, connection_timeout=60 ):
+    def start ( self, refresh_time = 30, delay = 1, ban_wait = 0, flush_after_x_refreshes=100, connection_timeout=60, limit=50 ):
         count = 0
         while True:
-            status,pastes = self.get_pastes ()
-
+            status,pastes = self.get_pastes (limit)
             start_time = time.time()
             if status == self.OK:
+                Logger ().log ( 'Got '+ str(len(pastes)) +' pastes', True , 'PURPLE')
+                read_count=0
                 for paste in pastes:
                     paste_id = paste['key']
                     self.new_checked_ids.append ( paste_id )
                     if paste_id not in self.prev_checked_ids:
                         self.check_paste ( paste_id )
+                        read_count +=1
                         time.sleep ( delay )
                     count += 1
 
@@ -164,8 +173,9 @@ class Crawler:
                 else:
                     self.prev_checked_ids += self.new_checked_ids
                 self.new_checked_ids = []
-
+                Logger ().log ( 'Read ' + str(read_count)    +' pastes', True , 'PURPLE')
                 elapsed_time = time.time() - start_time
+                Logger().log('Elapsed time: '+ str(elapsed_time), True)
                 sleep_time = ceil(max(0,(refresh_time - elapsed_time)))
                 if sleep_time > 0:
                     Logger().log('Waiting {:d} seconds to refresh...'.format(sleep_time), True)
@@ -179,7 +189,7 @@ class Crawler:
                 Logger().log ( 'Connection down. Waiting {:d} seconds and trying again'.format(connection_timeout), True, 'RED')
                 time.sleep(connection_timeout)
             elif status == self.OTHER_ERROR:
-                Logger().log('Unknown error. Maybe an encoding problem? Trying again.'.format(connection_timeout), True,'RED')
+                Logger().log( 'Unknown error. Maybe an encoding problem? Trying again.'.format(connection_timeout), True,'RED')
                 time.sleep(1)
 
 def parse_input():
@@ -189,8 +199,9 @@ def parse_input():
     parser.add_option('-b', '--ban-wait-time', help='Set the ban wait time (default: 5)', dest='ban_wait', type='int', default=5)
     parser.add_option('-f', '--flush-after-x-refreshes', help='Set the number of refreshes after which memory is flushed (default: 100)', dest='flush_after_x_refreshes', type='int', default=100)
     parser.add_option('-c', '--connection-timeout', help='Set the connection timeout waiting time (default: 60)', dest='connection_timeout', type='float', default=60)
+    parser.add_option('-l','--limit',help='Set the limit of results by fetch (default: 50)',dest='limit' ,type='int',default=50)
     (options, args) = parser.parse_args()
-    return options.refresh_time, options.delay, options.ban_wait, options.flush_after_x_refreshes, options.connection_timeout
+    return options.refresh_time, options.delay, options.ban_wait, options.flush_after_x_refreshes, options.connection_timeout, options.limit
 
 
 try:

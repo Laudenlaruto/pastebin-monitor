@@ -79,12 +79,12 @@ class Crawler:
                 except KeyboardInterrupt:
                     raise
                 except Exception as e:
-                    Logger().fatal_error(str(e))
+                    Logger().error(str(e))
                     Logger().fatal_error('Malformed regexes file. Format: regex_pattern,URL logging file, directory logging file.')
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().fatal_error(str(e))
+            Logger().error(str(e))
             Logger().fatal_error('{:s} not found or not acessible.'.format(self.REGEXES_FILE))
 
 
@@ -107,7 +107,7 @@ class Crawler:
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().fatal_error("Error getting pastes: " + str(e))
+            Logger().error("Error getting pastes: " + str(e))
             return self.CONNECTION_FAIL,None
 
     def check_paste ( self, paste_id ):
@@ -115,9 +115,8 @@ class Crawler:
         try:
             Logger ().log ( 'Checking paste ' + str(paste_id), True, 'CYAN' )
             with urllib.request.urlopen(paste_url) as response:
-                #Read paste with unicode
                 paste_txt = str(BeautifulSoup(response, "lxml"))
-                #   print(paste_txt)
+                # print(paste_txt)
                 #TODO Check all regex, not only stop at first match
                 for regex,file,directory in self.regexes:
                     if re.match ( regex, paste_txt, re.IGNORECASE ):
@@ -128,7 +127,7 @@ class Crawler:
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().fatal_error("Error on check paste: " + str(e))
+            Logger().error("Error on check paste: " + str(e))
             Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
         return False
 

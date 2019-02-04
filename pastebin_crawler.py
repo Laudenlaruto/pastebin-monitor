@@ -116,21 +116,19 @@ class Crawler:
             Logger ().log ( 'Checking paste ' + str(paste_id), True, 'CYAN' )
             with urllib.request.urlopen(paste_url) as response:
                 paste_txt = str(BeautifulSoup(response, "lxml"))
-                # print(paste_txt)
                 #TODO Check all regex, not only stop at first match
                 for regex,file,directory in self.regexes:
                     if re.match ( regex, paste_txt, re.IGNORECASE ):
                         Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
                         self.save_result ( paste_txt, paste_url, paste_id, file, directory )
                         return True
-                return False
         except KeyboardInterrupt:
             raise
         except Exception as e:
             Logger().error("Error on check paste: " + str(e))
-            Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
+            # Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
         return False
-
+        
     def save_result ( self, paste_txt, paste_url, paste_id, file, directory ):
         timestamp = get_timestamp()
         with open ( file, 'a' ) as matching:
@@ -188,7 +186,7 @@ class Crawler:
                 Logger().log ( 'Connection down. Waiting {:d} seconds and trying again'.format(connection_timeout), True, 'RED')
                 time.sleep(connection_timeout)
             elif status == self.OTHER_ERROR:
-                Logger().log( 'Unknown error. Maybe an encoding problem? Trying again.'.format(connection_timeout), True,'RED')
+                Logger().log( 'Unknown error. Maybe an encoding problem? Trying again.', True,'RED')
                 time.sleep(1)
 
 def parse_input():

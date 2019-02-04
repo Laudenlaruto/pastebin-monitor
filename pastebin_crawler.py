@@ -128,7 +128,7 @@ class Crawler:
             Logger().error("Error on check paste: " + str(e))
             # Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
         return False
-        
+
     def save_result ( self, paste_txt, paste_url, paste_id, file, directory ):
         timestamp = get_timestamp()
         with open ( file, 'a' ) as matching:
@@ -172,10 +172,10 @@ class Crawler:
                 self.new_checked_ids = []
                 Logger ().log ( 'Read ' + str(read_count)    +' pastes', True , 'PURPLE')
                 elapsed_time = time.time() - start_time
-                Logger().log('Elapsed time: '+ str(elapsed_time), True)
+                Logger().log('Elapsed time: '+ str(elapsed_time), True, 'BLUE')
                 sleep_time = ceil(max(0,(refresh_time - elapsed_time)))
                 if sleep_time > 0:
-                    Logger().log('Waiting {:d} seconds to refresh...'.format(sleep_time), True)
+                    Logger().log('Waiting {:d} seconds to refresh...'.format(sleep_time), True , 'BLUE')
                     time.sleep ( sleep_time )
             elif status == self.ACCESS_DENIED:
                 Logger ().log ( 'Damn! It looks like you have been banned (probably temporarily)', True, 'YELLOW' )

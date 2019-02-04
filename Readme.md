@@ -1,4 +1,4 @@
-# Pastebin Crawler Pro
+# Pastebin Crawler for pro user
 A simple Pastebin crawler for pastebin pro users! Which looks for interesting things and saves them to disk. 
 Originally forked from [https://github.com/FabioSpampinato/Pastebin-Crawler](https://github.com/FabioSpampinato/Pastebin-Crawler)
 
@@ -6,7 +6,8 @@ Originally forked from [https://github.com/FabioSpampinato/Pastebin-Crawler](htt
 * Python 3
 
 ## How it works
-The tool periodically checks for new pastes and analyzes them. If they match a given pattern, their URL is stored in a .txt file, and their content in a file under a predefined directory. For instance, if the paste matches a password it can be placed in 'passwords.txt' and stored under 'passwords'.
+The tool periodically checks for new pastes using the [scraping api](https://pastebin.com/doc_scraping_api). You will need a pro account to have your IP whitelisted. \
+If the pastes match a given pattern, their URL is stored in a .txt file, and their content in a file under a predefined directory. For instance, if the paste matches a password it can be placed in 'passwords.txt' and stored under 'passwords'.
  
  The following parameters are configurable:
  
@@ -15,7 +16,14 @@ The tool periodically checks for new pastes and analyzes them. If they match a g
  * Ban wait time (time to wait if a ban is detected, in minutes)
  * Timeout time (time to wait until a new attempt is made if connection times out due to a bad connection, in seconds)
  * Number of refreshes between flushes (number of refreshes until past Pastes are cleared from memory)
+ * Limit of pastes to get per fetch
  * The regexes. See [Using your own regexes](#user-content-using-your-own-regexes)
+
+### Recommendation
+If you want to follow the guidline from [scraping api](https://pastebin.com/doc_scraping_api). An optimised continuous scrapper would have a refresh of 60 seconde, a delay of 1 seconde and a limit of 100.
+```
+./pastebin_crawler.py -r 60 -d 1 -l 100    
+```
  
 ## Command line options
 
@@ -36,6 +44,8 @@ Options:
                         flushed (default: 100)
   -c CONNECTION_TIMEOUT, --connection-timeout=CONNECTION_TIMEOUT
                         Set the connection timeout waiting time (default: 60)
+  -l LIMIT_OF_PASTES, --limit=HOW_MANY_PASTES_YOU_WANT_TO_GET_PER_FETCH
+                        Set the number of pastes to get per fetch (default: 50)
 ```
  
 ## Using your own regexes

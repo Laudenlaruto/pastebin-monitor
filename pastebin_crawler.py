@@ -115,20 +115,25 @@ class Crawler:
         try:
             Logger ().log ( 'Checking paste ' + str(paste_id), True, 'CYAN' )
             with urllib.request.urlopen(paste_url) as response:
-                paste_txt = str(BeautifulSoup(response, "lxml"))
-                #TODO Check all regex, not only stop at first match
-                for regex,file,directory in self.regexes:
-                    if re.match ( regex, paste_txt, re.IGNORECASE ):
-                        Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
-                        self.save_result ( paste_txt, paste_url, paste_id, file, directory )
-                        return True
+                # paste_txt = str(BeautifulSoup(response, "lxml"))
+                paste_txt = response.read().decode('utf-8')
+                print (paste_txt)
+                self.check_with_regex(paste_txt,paste_url,paste_id)
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            Logger().error("Error on check paste: " + str(e))
-            # Logger ().log ( 'Error reading paste (probably a 404 or encoding issue).', True, 'YELLOW')
+            Logger().fatal_error("Error on check paste: " + str(e))
         return False
 
+    def check_with_regex(self, paste_txt, paste_url, paste_id):
+        #TODO Check all regex, not only stop at first match
+        for regex,file,directory in self.regexes:
+            patern = re.compile(regex)
+            # if re.match ( regex, paste_txt, re.IGNORECASE ):
+            if patern.match(paste_txt):
+                Logger ().log ( 'Found a matching paste: ' + paste_url + ' (' + file + ')', True, 'CYAN' )
+                self.save_result ( paste_txt, paste_url, paste_id, file, directory )
+                return True
     def save_result ( self, paste_txt, paste_url, paste_id, file, directory ):
         timestamp = get_timestamp()
         with open ( file, 'a' ) as matching:
@@ -137,7 +142,7 @@ class Crawler:
             os.mkdir(directory)
         except KeyboardInterrupt:
             raise
-        except:
+        except Exception as e:
             pass
         try:
             with open( directory + '/' + timestamp.replace('/','_').replace(':','_').replace(' ','__') + '_' + paste_id.replace('/','') + '.txt', mode='w' ) as paste:
